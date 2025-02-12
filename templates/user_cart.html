@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Корзина</title>
+</head>
+<body>
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Ваша корзина</h1>
+
+{% if cart %}
+    <ul>
+        {% for item in cart %}
+            <li>
+                {{ item.goods_fk.product_name }} — {{ item.goods_fk.price }} $
+                <form action="/cart/decrease/{{ item.goods_id }}" method="post" style="display:inline;">
+                    <button type="submit">-</button>
+                </form>
+                {{ item.quantity }}
+                <form action="/cart/increase/{{ item.goods_id }}" method="post" style="display:inline;">
+                    <button type="submit">+</button>
+                </form>
+                <!-- Кнопка для удаления товара -->
+                <form action="/cart/delete/{{ item.goods_id }}" method="post" style="display:inline;">
+                    <button type="submit">Удалить</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>Корзина пуста.</p>
+{% endif %}
+
+<a href="/">← Вернуться на главную</a>
+{% endblock %}
+</body>
+</html>
