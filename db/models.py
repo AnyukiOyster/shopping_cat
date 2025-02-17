@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy.sql import expression
 from sqlalchemy.orm import relationship
 from db import Base
 
@@ -11,6 +12,7 @@ class Client(Base):
     name = Column(String, nullable=False)
     surname = Column(String, nullable=True)
     tel = Column(String, nullable=False)
+    password = Column(String, nullable=False)
     reg_date = Column(DateTime, default=datetime.now())
 
 ## Модели для товаров
@@ -30,9 +32,10 @@ class Goods(Base):
     product_name = Column(String, nullable=False)
     price = Column(Float, nullable=False)
     amount = Column(Integer, nullable=False)
-    in_stock = Column(Boolean, default=True)
+    in_stock = Column(Boolean, server_default=expression.true(), nullable=False)
 
     category_fk = relationship(GoodsCategory, lazy='subquery')
+    photos = relationship("GoodsPhoto", back_populates="goods_fk", lazy='subquery')
 
 # Фотографии товаров
 class GoodsPhoto(Base):
@@ -42,8 +45,7 @@ class GoodsPhoto(Base):
     product_id = Column(Integer, ForeignKey('goods.id'))
     photo_file = Column(String, nullable=False)
 
-    goods_fk = relationship(Goods, lazy='subquery')
-    photos = relationship('GoodsPhoto', backref='product', lazy='subquery')
+    goods_fk = relationship("Goods", back_populates="photos", lazy='subquery')
 
 ## Модель для корзины
 class Cart(Base):

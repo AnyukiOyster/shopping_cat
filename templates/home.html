@@ -1,10 +1,47 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Магазин «Хвосты и усы»</title>
-</head>
-<body>
+{% extends "base.html" %}
 
-</body>
-</html>
+{% block title %}Зоомагазин «Хвосты и усы»{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if purchase_message %}
+    <div class="alert alert-success text-center">
+        {{ purchase_message }}
+    </div>
+    {% endif %}
+    {% if message %}
+    <div class="alert alert-danger text-center">
+        {{ message }}
+    </div>
+    {% endif %}
+    <h2 class="text-center mb-4">Популярные товары</h2>
+    {% if not products_showing %}
+    <div class="alert alert-info text-center">
+        Пока что товаров нет, но скоро они появятся!
+    </div>
+    {% else %}
+    <div class="row">
+        {% for p in products_showing %}
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card product-card h-100">
+                <a href="/products/{{ p.id }}" class="text-decoration-none text-dark">
+                    <img src="{{ p.photos[0].photo_file if p.photos and p.photos[0] else '/static/images/no_image.png' }}"
+                         class="card-img-top" 
+                         alt="{{ p.product_name }}">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ p.product_name }}</h5>
+                        {% if p.in_stock %}
+                        <p class="card-text"><strong>Цена:</strong> $ {{ p.price }}</p>
+                        <p class="card-text text-success"><strong>В наличии:</strong> {{ p.amount }} шт.</p>
+                        {% else %}
+                        <p class="card-text text-danger">Товара нет в наличии</p>
+                        {% endif %}
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,10 +1,62 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends "base.html" %}
 
-</body>
-</html>
+{% block title %}{{ product.product_name }} — Зоомагазин «Хвосты и усы»{% endblock %}
+
+{% block content %}
+{% if message_success %}
+    <div class="alert alert-success text-center">
+        {{ message_success }}
+    </div>
+{% endif %}
+{% if message_warning %}
+    <div class="alert alert-danger text-center">
+        {{ message_warning }}
+    </div>
+{% endif %}
+
+<div class="container mt-4">
+    <div class="row">
+        <!-- Карусель изображений -->
+        <div class="col-md-6">
+            {% if product.photos %}
+                <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        {% for photo in product.photos %}
+                            <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                <img src="{{ photo.photo_file }}" class="d-block w-100" alt="{{ product.product_name }}">
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <a class="carousel-control-prev" href="#productCarousel" role="button" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </a>
+                    <a class="carousel-control-next" href="#productCarousel" role="button" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </a>
+                </div>
+            {% else %}
+                <img src="/static/images/no_image.png" class="d-block w-100" alt="Изображение отсутствует">
+            {% endif %}
+        </div>
+
+        <!-- Описание товара -->
+        <div class="col-md-6">
+            <h2>{{ product.product_name }}</h2>
+            {% if product.in_stock %}
+                <p><strong>Цена:</strong> $ {{ product.price }}</p>
+                <p class="text-success"><strong>В наличии:</strong> {{ product.amount }} шт.</p>
+                <!-- Форма добавления в корзину -->
+                <form method="post" action="/products/{{ product.id }}/to-cart">
+                    <label for="quantity">Количество:</label>
+                    <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ product.amount }}" required>
+                    <button type="submit" class="btn btn-primary">Добавить в корзину</button>
+                </form>
+            {% else %}
+                <p class="text-danger">Товара нет в наличии</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

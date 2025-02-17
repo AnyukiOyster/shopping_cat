@@ -1,10 +1,39 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title></title>
-</head>
-<body>
+{% extends "base.html" %}
 
-</body>
-</html>
+{% block title %}{{ category.category_name if category else "Неизвестная категория" }} — Зоомагазин «Хвосты и усы»{% endblock %}
+
+{% block content %}
+{% if not product %}
+<div class="alert alert-danger text-center">
+        В этой категории пока нет товаров.
+    </div>
+{% else %}
+<h3>{{ category.category_name if category else "Неизвестная категория" }}</h3>
+<hr>
+<br>
+<div class="row">
+        {% for p in products %}
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card product-card h-100">
+                <a href="/products/{{ p.id }}" class="text-decoration-none text-dark">
+                    <img src="{{ p.photos[0].photo_file if p.photos and p.photos[0] else '/static/images/no_image.png' }}"
+                         class="card-img-top"
+                         alt="{{ p.product_name }}">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ p.product_name }}</h5>
+                        {% if p.in_stock %}
+                        <p class="card-text"><strong>Цена:</strong> $ {{ p.price }}</p>
+                        <p class="card-text text-success"><strong>В наличии:</strong> {{ p.amount }} шт.</p>
+                        {% else %}
+                        <p class="card-text text-danger">Товара нет в наличии</p>
+                        {% endif %}
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+{% endif %}
+
+{% endblock %}

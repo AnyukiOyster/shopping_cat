@@ -17,6 +17,11 @@ def get_exact_user_db(user_id):
         return exact_user
     return False
 
+def get_user_id_by_tel(tel):
+    db = next(get_db())
+    user = db.query(Client.id).filter(Client.tel == tel).first()
+    return user.id if user else None
+
 #Удаление пользователя
 def delete_user_db(user_id):
     db = next(get_db())

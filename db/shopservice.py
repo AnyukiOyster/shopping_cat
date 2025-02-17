@@ -1,6 +1,10 @@
 from sqlalchemy.orm import joinedload
 from db import get_db
 from db.models import *
+from config import *
+import telebot
+
+bot = telebot.TeleBot(telegram_token)
 
 #Добавление категории в базу данных
 def add_category_db(category_name):
@@ -34,7 +38,7 @@ def delete_category_db(categ_id):
     return False
 
 #Добавление товара в базу данных
-def add_product_db(category_id, product_name, price, amount):
+def add_product_db(category_id, product_name, price, amount, in_stock = True):
     db = next(get_db())
     in_stock = amount > 0
     new_product = Goods(category=category_id, product_name=product_name, price=price, amount=amount, in_stock=in_stock)
@@ -63,7 +67,7 @@ def delete_product_db(prod_id):
     db = next(get_db())
     exact_product = db.query(Goods).filter_by(id=prod_id).first()
     if exact_product:
-        product_photos = db.query(GoodsPhoto).filter_by(product_id=prod_id).all()  # Исправлено на правильный внешний ключ
+        product_photos = db.query(GoodsPhoto).filter_by(product_id=prod_id).all()
         for photo in product_photos:
             db.delete(photo)
         db.delete(exact_product)
@@ -84,7 +88,6 @@ def update_product_db(prod_id, field, info):
             exact_product.price = float(info)
         elif field == 'amount':
             exact_product.amount = int(info)
-            # Проверка наличия товара
             exact_product.in_stock = exact_product.amount > 0
         db.commit()
         return True
@@ -93,12 +96,19 @@ def update_product_db(prod_id, field, info):
 #Добавление товара в корзину
 def add_to_cart_db(user_id, product_id, quantity):
     db = next(get_db())
+    prod = db.query(Goods).filter_by(id=product_id).first()
+    if not prod:
+        return False
     item = db.query(Cart).filter_by(client_id=user_id, goods_id=product_id).first()
     if item:
-        # Проверка на наличие выбранного товара в корзине пользователя
-        item.quantity += quantity
+        # Проверка наличия выбранного товара в корзине пользователя и возможности покупки в новом количестве
+        new_quantity = item.quantity + quantity
+        if new_quantity > prod.amount:
+            return False
+        item.quantity = new_quantity
     else:
-        # Если товар не был добавлен ранее, он добавляется в корзину
+        if quantity > prod.amount:
+            return False
         product_to_buy = Cart(client_id=user_id, goods_id=product_id, quantity=quantity)
         db.add(product_to_buy)
     db.commit()
@@ -107,7 +117,12 @@ def add_to_cart_db(user_id, product_id, quantity):
 #Вывод корзины клиента
 def get_cart_db(user_id):
     db = next(get_db())
-    cart = db.query(Cart).filter_by(client_id=user_id).all()
+    cart = db.query(Cart).options(joinedload(Cart.goods_fk)).filter_by(client_id=user_id).all()
+    if cart:
+        for item in cart:
+            if item.goods_fk.amount < item.quantity:
+                item.quantity = item.goods_fk.amount
+                db.commit()
     return cart if cart else []
 
 #Удаление товара из корзины
@@ -123,24 +138,38 @@ def delete_in_cart_db(user_id, prod_id):
 #Изменение количества товара в корзине
 def update_cart_db(prod_id, user_id, quantity):
     db = next(get_db())
-    cart_entry = db.query(Cart).filter_by(client_id=user_id, goods_id=prod_id).first()
-    if cart_entry:
-        if quantity > 0:
-            cart_entry.quantity = quantity
-        else:
-            # Если изменить количество товара на 0, то он удаляется из корзины
-            db.delete(cart_entry)
-        db.commit()
-        return True
-    return False
+    cart_entry = db.query(Cart).options(joinedload(Cart.goods_fk)).filter_by(client_id=user_id, goods_id=prod_id).first()
+    if not cart_entry or quantity > cart_entry.goods_fk.amount:
+        return False
+    if quantity > 0:
+        cart_entry.quantity = quantity
+    else:
+        db.delete(cart_entry)
+    db.commit()
+    return True
 
-#Очистка корзины
-def clear_cart_db(user_id):
+#Совершение покупки и очистка корзины
+def make_purchase_db(user_id):
     db = next(get_db())
-    cart_items = db.query(Cart).filter_by(client_id=user_id).all()
-    if cart_items:
-        for item in cart_items:
-            db.delete(item)
-        db.commit()
-        return True
-    return False
+    cart_items = db.query(Cart).options(joinedload(Cart.goods_fk)).filter_by(client_id=user_id).all()
+    if not cart_items:
+        return {"success": False, "message": "Корзина пуста.", "cart": []}
+    total_price = 0
+    text = ""
+    warning_text = ""
+    for item in cart_items:
+        if item.goods_fk.amount < item.quantity:
+            warning_text += f'Выбранное количество товара «{item.goods_fk.product_name}» недоступно.\nМаксимальное доступное количество для заказа: {item.quantity}\n'
+    if warning_text:
+        return {"success": False, "message": warning_text, "cart": get_cart_db(user_id)}
+    for item in cart_items:
+        item.goods_fk.amount -= item.quantity
+        total_price += item.goods_fk.price * item.quantity
+        text += f"Товар: {item.goods_fk.product_name}\nКоличество: {item.quantity}\n------------------\n"
+        db.delete(item)
+    text += f"Итого к оплате: $ {round(total_price, 2)}"
+    db.commit()
+    user = db.query(Client).filter_by(id=user_id).first()
+    text_tg = f'Оформлен новый заказ!\nКлиент: {user.name}\nТелефон: {user.tel}\n\n' + text
+    bot.send_message(user_id_admin, text_tg)
+    return {"success": True, "message": "Заказ оформлен!", "cart": []}
